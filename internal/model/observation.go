@@ -44,7 +44,7 @@ func NewObservation(id, batchID, fieldID string, angle float64, unit AngleUnit, 
 	}
 	deg, err := normalizeAngle(angle, unit)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("%w: %v", ErrInvalidArgument, err)
 	}
 	return &Observation{
 		ID:          id,

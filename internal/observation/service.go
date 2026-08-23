@@ -77,6 +77,9 @@ func (s *Service) Import(batchID, fieldID string, unit model.AngleUnit, angles [
 			res.Skipped++
 		}
 	}
+	if res.Rejected > 0 {
+		return nil, fmt.Errorf("%w: %d observations rejected", model.ErrBadInput, res.Rejected)
+	}
 	return res, nil
 }
 
