@@ -26,9 +26,11 @@ const (
 )
 
 // ValidBatchTransitions 描述批次允许的合法流转。
+// published 仅可由 analyzable 进入——observing 必须先转为 analyzable，
+// 且发布前需冻结结果（见 service.App.Publish 的门禁校验）。
 var ValidBatchTransitions = map[BatchStatus][]BatchStatus{
 	BatchRegistered: {BatchObserving},
-	BatchObserving:  {BatchAnalyzable, BatchRegistered, BatchPublished},
+	BatchObserving:  {BatchAnalyzable, BatchRegistered},
 	BatchAnalyzable: {BatchPublished, BatchObserving},
 	BatchPublished:  {BatchObserving}, // 补充观测后打回重算
 }

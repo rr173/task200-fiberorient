@@ -108,7 +108,8 @@ func (s *BatchService) UpdateSliceAngle(id string, deg float64) (*model.Batch, e
 	return b, nil
 }
 
-// Publish 发布批次：要求批次可分析（analyzable）且有已发布结果。
+// Publish 发布批次：要求批次已进入 analyzable 状态且拥有已冻结结果。
+// observing 状态的批次不得直接发布——必须先流转到 analyzable 并冻结结果。
 func (a *App) Publish(batchID string) (*model.Batch, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
@@ -116,7 +117,7 @@ func (a *App) Publish(batchID string) (*model.Batch, error) {
 	if err != nil {
 		return nil, err
 	}
-	if b.Status != model.BatchAnalyzable && b.Status != model.BatchObserving {
+	if b.Status != model.BatchAnalyzable {
 		return nil, fmt.Errorf("%w: batch must be analyzable to publish, current %s", model.ErrInvalidState, b.Status)
 	}
 	latest, err := a.Results.Latest(batchID)

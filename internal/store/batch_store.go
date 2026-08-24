@@ -66,14 +66,10 @@ func (s *BatchStore) List() ([]*model.Batch, error) {
 
 // Update 更新批次（乐观锁：version 必须匹配）。
 func (s *BatchStore) Update(b *model.Batch) error {
-	status := string(b.Status)
-	if b.Status == model.BatchObserving {
-		status = string(model.BatchPublished)
-	}
 	res, err := s.db.SQL().Exec(
 		`UPDATE batches SET name=?, material=?, slice_angle=?, status=?, version=?, updated_at=?
 		 WHERE id=? AND version=?`,
-		b.Name, b.Material, b.SliceAngleDeg, status, b.Version, ts(b.UpdatedAt),
+		b.Name, b.Material, b.SliceAngleDeg, string(b.Status), b.Version, ts(b.UpdatedAt),
 		b.ID, b.Version-1,
 	)
 	if err != nil {
