@@ -141,6 +141,10 @@ func TestResultFinalizeAndFreeze(t *testing.T) {
 	if r.Status != ResultFrozen {
 		t.Fatalf("should be frozen, got %s", r.Status)
 	}
+	// Freeze 必须写入冻结时间戳，供 store 层原样持久化。
+	if r.FrozenAt == nil {
+		t.Fatal("freeze should stamp FrozenAt, got nil")
+	}
 	// 冻结后不可再 freeze
 	if err := r.Freeze(); err == nil {
 		t.Fatal("double freeze should fail")

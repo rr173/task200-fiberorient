@@ -107,11 +107,14 @@ func (r *Result) Finalize(stats *CircularStats, bim *Bimodality, ci *ConfidenceI
 }
 
 // Freeze 冻结结果（终态，禁止直接编辑）。
+// 与 Calibration.Activate 一致：冻结时间戳在领域方法内写入，
+// 由 store 层原样持久化，确保重载后冻结时间不丢失。
 func (r *Result) Freeze() error {
 	if r.Status != ResultPublishable {
 		return fmt.Errorf("only publishable result can be frozen, current %s", r.Status)
 	}
 	r.Status = ResultFrozen
-	r.FrozenAt = nil
+	t := now().UTC()
+	r.FrozenAt = &t
 	return nil
 }

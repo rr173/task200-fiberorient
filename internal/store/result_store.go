@@ -83,11 +83,9 @@ func (s *ResultStore) NextVersion(batchID string) (int, error) {
 	return int(maxV.Int64) + 1, nil
 }
 
-// Update 更新结果（含冻结时间戳）。
+// Update 更新结果（含冻结时间戳）。冻结时间由领域方法 Freeze 写入，
+// 此处原样持久化，不得清空——否则重载后冻结时间丢失。
 func (s *ResultStore) Update(r *model.Result) error {
-	if r.Status == model.ResultFrozen {
-		r.FrozenAt = nil
-	}
 	_, err := s.db.SQL().Exec(
 		`UPDATE results SET status=?, mean_deg=?, resultant_length=?, circular_variance=?, kappa=?, rayleigh_p=?,
 			is_bimodal=?, primary_deg=?, secondary_deg=?, dip_statistic=?, separation_deg=?,

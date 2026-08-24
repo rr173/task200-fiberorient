@@ -130,7 +130,6 @@ func (s *Service) Freeze(id string) (*model.Result, error) {
 	if err := r.Freeze(); err != nil {
 		return nil, wrapInvalid(err)
 	}
-	r.FrozenAt = nil
 	if err := s.results.Update(r); err != nil {
 		return nil, err
 	}
