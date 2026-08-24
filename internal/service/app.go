@@ -4,6 +4,7 @@ package service
 import (
 	"errors"
 	"fmt"
+	"sort"
 	"sync"
 
 	"task200-fiberorient/internal/calibration"
@@ -133,14 +134,18 @@ func (a *App) Publish(batchID string) (*model.Batch, error) {
 }
 
 // FullStatSnapshot 组合"视野筛选 + 有效视野"供统计调用（编排层职责）。
+// 仅 valid 视野进入快照与统计输入：污染/已剔除视野一律排除，
+// 否则清洗结果（剔除）与统计输入（仍含剔除视野）不一致。
 func (a *App) FullStatSnapshot(batchID string) ([]string, string, error) {
-	fields, err := a.Fields.ListByBatch(batchID)
+	fields, err := a.Fields.EffectiveFields(batchID)
 	if err != nil {
 		return nil, "", err
 	}
 	if len(fields) == 0 {
 		return nil, "", fmt.Errorf("%w: no valid fields in batch %s", model.ErrInsufficientData, batchID)
 	}
+	// 字段顺序与 Snapshot 一致：按 ID 升序，保证快照稳定可复算。
+	sort.Slice(fields, func(i, j int) bool { return fields[i].ID < fields[j].ID })
 	ids := make([]string, 0, len(fields))
 	snap := ""
 	for i, f := range fields {

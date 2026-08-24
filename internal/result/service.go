@@ -58,7 +58,9 @@ func (s *Service) Compute(opts ComputeOptions) (*model.Result, error) {
 		return nil, fmt.Errorf("%w: only active calibration can drive statistics", model.ErrInvalidState)
 	}
 
-	obs, err := s.obs.ListByBatch(opts.BatchID)
+	// 仅统计筛选后（有效）视野的观测：剔除/污染视野的观测不进入
+	// 角度数组与观测数量，保证清洗结果与统计输入一致。
+	obs, err := s.obs.ListByBatchFields(opts.BatchID, opts.FieldIDs)
 	if err != nil {
 		return nil, err
 	}

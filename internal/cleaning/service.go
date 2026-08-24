@@ -103,6 +103,8 @@ func (s *Service) Exclude(id string) (*model.Field, error) {
 }
 
 // EffectiveFields 返回批次下全部有效视野。
+// 仅 valid 视野参与统计：污染（polluted）可恢复，已剔除（excluded）为终态，
+// 二者都不应进入有效视野快照或观测数量，否则清洗结果与统计输入不一致。
 func (s *Service) EffectiveFields(batchID string) ([]*model.Field, error) {
 	all, err := s.fields.ListByBatch(batchID)
 	if err != nil {
@@ -110,7 +112,7 @@ func (s *Service) EffectiveFields(batchID string) ([]*model.Field, error) {
 	}
 	var out []*model.Field
 	for _, f := range all {
-		if f.Status == model.FieldValid || f.Status == model.FieldExcluded {
+		if f.Status == model.FieldValid {
 			out = append(out, f)
 		}
 	}
