@@ -83,17 +83,19 @@ func (b *Batch) CanTransition(target BatchStatus) bool {
 }
 
 // Transition 校验并推进状态机。
+// 版本号不由领域层推进：乐观锁的版本前移由 store 在成功持久化时原子完成，
+// 领域层只负责状态与时间戳的变更，避免与持久层重复计数导致版本停滞。
 func (b *Batch) Transition(target BatchStatus) error {
 	if !b.CanTransition(target) {
 		return fmt.Errorf("invalid batch transition %s -> %s", b.Status, target)
 	}
 	b.Status = target
 	b.UpdatedAt = now().UTC()
-	b.Version++
 	return nil
 }
 
 // UpdateSliceAngle 修改切片方向并打回观测中状态（需重新采集）。
+// 版本号交由 store 在持久化时前移（见 Transition 说明）。
 func (b *Batch) UpdateSliceAngle(deg float64) error {
 	if deg < 0 || deg >= 180 {
 		return fmt.Errorf("slice angle must be in [0,180), got %v", deg)
@@ -101,6 +103,5 @@ func (b *Batch) UpdateSliceAngle(deg float64) error {
 	b.SliceAngleDeg = deg
 	b.Status = BatchObserving
 	b.UpdatedAt = now().UTC()
-	b.Version += 2
 	return nil
 }

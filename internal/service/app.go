@@ -73,12 +73,18 @@ func (s *BatchService) Get(id string) (*model.Batch, error) {
 	return s.batches.Get(id)
 }
 
+// Update 写入批次（乐观锁）。携带读取时 version 的对象方可写入成功，
+// 随后 version 原子前移；用旧对象再次写入将命中 0 行 → ErrConflict。
+func (s *BatchService) Update(b *model.Batch) error {
+	return s.batches.Update(b)
+}
+
 // List 列出批次。
 func (s *BatchService) List() ([]*model.Batch, error) {
 	return s.batches.List()
 }
 
-// Transition 推进批次状态。
+// Transition 推进批次状态。版本号由 store 在成功写入时前移（乐观锁）。
 func (s *BatchService) Transition(id string, target model.BatchStatus) (*model.Batch, error) {
 	b, err := s.batches.Get(id)
 	if err != nil {
@@ -87,14 +93,13 @@ func (s *BatchService) Transition(id string, target model.BatchStatus) (*model.B
 	if err := b.Transition(target); err != nil {
 		return nil, fmt.Errorf("%w: %v", model.ErrInvalidState, err)
 	}
-	b.Version--
 	if err := s.batches.Update(b); err != nil {
 		return nil, err
 	}
 	return b, nil
 }
 
-// UpdateSliceAngle 修改切片方向（自动打回 observing）。
+// UpdateSliceAngle 修改切片方向（自动打回 observing）。版本号由 store 在成功写入时前移。
 func (s *BatchService) UpdateSliceAngle(id string, deg float64) (*model.Batch, error) {
 	b, err := s.batches.Get(id)
 	if err != nil {
@@ -103,7 +108,6 @@ func (s *BatchService) UpdateSliceAngle(id string, deg float64) (*model.Batch, e
 	if err := b.UpdateSliceAngle(deg); err != nil {
 		return nil, err
 	}
-	b.Version -= 2
 	if err := s.batches.Update(b); err != nil {
 		return nil, err
 	}

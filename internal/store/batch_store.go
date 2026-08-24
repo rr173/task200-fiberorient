@@ -64,12 +64,13 @@ func (s *BatchStore) List() ([]*model.Batch, error) {
 	return out, rows.Err()
 }
 
-// Update 更新批次（乐观锁：version 必须匹配）。
+// Update 更新批次（乐观锁：仅当行内 version 与读取时的 b.Version 一致方可写入，
+// 写入时 version 原子前移 +1，使后续用旧对象提交的写命中 0 行 → ErrConflict）。
 func (s *BatchStore) Update(b *model.Batch) error {
 	res, err := s.db.SQL().Exec(
-		`UPDATE batches SET name=?, material=?, slice_angle=?, status=?, version=?, updated_at=?
+		`UPDATE batches SET name=?, material=?, slice_angle=?, status=?, version=version+1, updated_at=?
 		 WHERE id=? AND version=?`,
-		b.Name, b.Material, b.SliceAngleDeg, string(b.Status), b.Version, ts(b.UpdatedAt),
+		b.Name, b.Material, b.SliceAngleDeg, string(b.Status), ts(b.UpdatedAt),
 		b.ID, b.Version,
 	)
 	if err != nil {
@@ -78,6 +79,8 @@ func (s *BatchStore) Update(b *model.Batch) error {
 	if n, _ := res.RowsAffected(); n == 0 {
 		return model.ErrConflict
 	}
+	// 持久化成功：内存对象版本前移，与库内行保持一致，供后续写继续乐观校验。
+	b.Version++
 	return nil
 }
 
