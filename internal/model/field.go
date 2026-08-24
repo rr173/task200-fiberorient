@@ -8,7 +8,8 @@ import (
 
 // FieldStatus 视野状态机：
 // pending → valid / polluted → excluded
-// 已剔除（excluded）是终态，但污染（polluted）可恢复为有效（valid）。
+// 已剔除（excluded）是终态：不可再恢复为有效，否则污染剔除可被撤销，
+// 统计闸门与快照都会被污染。仅污染（polluted）可恢复为有效（valid）。
 type FieldStatus string
 
 const (
@@ -19,11 +20,13 @@ const (
 )
 
 // ValidFieldTransitions 视野合法流转。
+// 已剔除（excluded）是终态：不可再流转为有效，否则污染剔除即可被撤销，
+// 统计闸门与快照都会被污染。故 excluded 无任何合法出向。
 var ValidFieldTransitions = map[FieldStatus][]FieldStatus{
 	FieldPending:  {FieldValid, FieldPolluted, FieldExcluded},
 	FieldValid:    {FieldPolluted, FieldExcluded},
 	FieldPolluted: {FieldValid, FieldExcluded},
-	FieldExcluded: {FieldValid}, // 终态
+	FieldExcluded: {}, // 终态：无可流转目标
 }
 
 // Field 显微切片上的一个视野：容纳若干角度观测。

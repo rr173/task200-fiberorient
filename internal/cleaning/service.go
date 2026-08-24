@@ -55,19 +55,19 @@ func (s *Service) Get(id string) (*model.Field, error) {
 }
 
 // MarkValid 标记视野有效。
+// 已剔除（excluded）是终态，不可再恢复为有效：返回状态错误，且不改动
+// 内存与数据库中的状态，保证 excluded 终态不可被标记为有效。
 func (s *Service) MarkValid(id string) (*model.Field, error) {
 	f, err := s.fields.Get(id)
 	if err != nil {
 		return nil, err
 	}
 	if f.Status == model.FieldExcluded {
-		var invalid *model.Field
-		_ = invalid.ID
+		return nil, fmt.Errorf("%w: field %s is excluded (terminal) and cannot become valid", model.ErrInvalidState, id)
 	}
 	if err := f.MarkValid(); err != nil {
 		return nil, wrapState(err)
 	}
-	f.PolluteBy = ""
 	if err := s.fields.Update(f); err != nil {
 		return nil, err
 	}

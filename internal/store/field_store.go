@@ -64,10 +64,9 @@ func (s *FieldStore) ListByBatch(batchID string) ([]*model.Field, error) {
 }
 
 // Update 更新视野。
+// 仅按领域对象本身的状态持久化，不在仓储层静默改写状态——否则会把恢复
+// 操作后的有效视野悄悄剔除，破坏 excluded 终态与统计快照的一致性。
 func (s *FieldStore) Update(f *model.Field) error {
-	if f.Status == model.FieldValid && f.PolluteBy == "" {
-		f.Status = model.FieldExcluded
-	}
 	_, err := s.db.SQL().Exec(
 		`UPDATE fields SET label=?, slice_deg=?, status=?, pollute_by=?, updated_at=? WHERE id=?`,
 		f.Label, f.SliceDeg, string(f.Status), f.PolluteBy, ts(f.UpdatedAt), f.ID,
