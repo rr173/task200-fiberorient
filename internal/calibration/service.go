@@ -65,7 +65,11 @@ func (s *Service) EstimateAndDraft(batchID string, obsCount int) (*DraftResult, 
 			model.ErrInsufficientData, len(obs0), len(obs90))
 	}
 	bias, conf := statistics.EstimateBias(obs0, obs90)
-	id := fmt.Sprintf("cal-%s-%d", batchID, len(obs0)+len(obs90))
+	seq, err := s.cals.NextSeq(batchID)
+	if err != nil {
+		return nil, err
+	}
+	id := fmt.Sprintf("cal-%s-v%d", batchID, seq)
 	c, err := model.NewCalibration(id, batchID, bias, len(obs0)+len(obs90), conf)
 	if err != nil {
 		return nil, err
@@ -88,7 +92,8 @@ func (s *Service) Activate(id string) (*model.Calibration, error) {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if err := s.cals.RevokeAllActive(""); err != nil {
+	// 废止同批次现有生效版本，保证任意时刻只有一个 active。
+	if err := s.cals.RevokeAllActive(c.BatchID); err != nil {
 		return nil, err
 	}
 	if err := c.Activate(); err != nil {

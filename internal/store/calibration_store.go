@@ -28,6 +28,16 @@ func (s *CalibrationStore) Insert(c *model.Calibration) error {
 	return nil
 }
 
+// NextSeq 计算批次下一个校准序号（现有版本数+1），用于生成稳定且唯一的草稿 ID。
+func (s *CalibrationStore) NextSeq(batchID string) (int, error) {
+	var count int64
+	if err := s.db.SQL().QueryRow(
+		`SELECT COUNT(*) FROM calibrations WHERE batch_id = ?`, batchID).Scan(&count); err != nil {
+		return 0, fmt.Errorf("next calibration seq: %w", err)
+	}
+	return int(count) + 1, nil
+}
+
 // Get 按 ID 取校准版本。
 func (s *CalibrationStore) Get(id string) (*model.Calibration, error) {
 	row := s.db.SQL().QueryRow(
@@ -79,6 +89,17 @@ func (s *CalibrationStore) Active(batchID string) (*model.Calibration, error) {
 	return c, nil
 }
 
+// CountActive 返回批次下生效版本数量（不变更数据，供一致性自检）。
+func (s *CalibrationStore) CountActive(batchID string) (int, error) {
+	var count int64
+	if err := s.db.SQL().QueryRow(
+		`SELECT COUNT(*) FROM calibrations WHERE batch_id = ? AND status = ?`,
+		batchID, string(model.CalibrationActive)).Scan(&count); err != nil {
+		return 0, fmt.Errorf("count active calibrations: %w", err)
+	}
+	return int(count), nil
+}
+
 // Update 更新校准版本。
 func (s *CalibrationStore) Update(c *model.Calibration) error {
 	_, err := s.db.SQL().Exec(
@@ -92,14 +113,25 @@ func (s *CalibrationStore) Update(c *model.Calibration) error {
 	return nil
 }
 
-// RevokeAllActive 把批次全部生效版本废止（激活新版本前调用，事务内）。
+// RevokeAllActive 把批次全部生效版本废止（激活新版本前调用）。
+// 必须按 batch_id 限定范围并匹配 status=active，否则会误废止其他批次的生效版本。
 func (s *CalibrationStore) RevokeAllActive(batchID string) error {
-	_, err := s.db.SQL().Exec(
+	if batchID == "" {
+		return fmt.Errorf("revoke all active: batch id required")
+	}
+	res, err := s.db.SQL().Exec(
 		`UPDATE calibrations SET status=?, revoked_at=? WHERE batch_id=? AND status=?`,
-		string(model.CalibrationRevoked), ts(nowUTC()), batchID, string(model.CalibrationDraft),
-	)
+		string(model.CalibrationRevoked), ts(nowUTC()), batchID, string(model.CalibrationActive))
 	if err != nil {
 		return fmt.Errorf("revoke all active: %w", err)
+	}
+	n, err := res.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("revoke all active: rows affected: %w", err)
+	}
+	// 同一批次至多一个生效版本；超过即说明并发或历史数据不一致，激活应中止以免留下歧义状态。
+	if n > 1 {
+		return fmt.Errorf("revoke all active: batch %s has %d active calibrations, expected at most 1", batchID, n)
 	}
 	return nil
 }

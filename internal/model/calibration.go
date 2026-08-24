@@ -64,7 +64,9 @@ func (c *Calibration) Activate() error {
 		return fmt.Errorf("only draft calibration can be activated, current %s", c.Status)
 	}
 	c.Status = CalibrationActive
-	c.ActivatedAt = nil
+	t := now().UTC()
+	c.ActivatedAt = &t
+	c.RevokedAt = nil
 	return nil
 }
 
