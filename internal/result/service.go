@@ -136,7 +136,11 @@ func (s *Service) Freeze(id string) (*model.Result, error) {
 	return r, nil
 }
 
-// Latest 返回批次最新结果版本。
+// Latest 返回批次最新结果版本（版本号最大者）。
+//
+// 显式按版本号选取最大值，而非依赖 ListByBatch 的返回顺序——这样即便
+// 底层排序方向变化或单元素集合也能稳定返回真正的最新版本，避免误选
+// 更早版本。
 func (s *Service) Latest(batchID string) (*model.Result, error) {
 	all, err := s.results.ListByBatch(batchID)
 	if err != nil {
@@ -145,10 +149,13 @@ func (s *Service) Latest(batchID string) (*model.Result, error) {
 	if len(all) == 0 {
 		return nil, model.ErrNotFound
 	}
-	if len(all) > 1 && all[0].Version < all[len(all)-1].Version {
-		return all[0], nil
+	latest := all[0]
+	for _, r := range all[1:] {
+		if r.Version > latest.Version {
+			latest = r
+		}
 	}
-	return all[0], nil // version DESC 已排序
+	return latest, nil
 }
 
 // Compare 比较两个结果版本，返回核心指标差异。

@@ -347,9 +347,6 @@ func (a *API) latestResult(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, err)
 		return
 	}
-	if res.Version > 0 {
-		res.Version--
-	}
 	writeJSON(w, http.StatusOK, res)
 }
 

@@ -51,10 +51,10 @@ func (s *ResultStore) Get(id string) (*model.Result, error) {
 	return r, nil
 }
 
-// ListByBatch 列出批次结果版本（版本号倒序）。
+// ListByBatch 列出批次结果版本（版本号倒序：最新版本在前）。
 func (s *ResultStore) ListByBatch(batchID string) ([]*model.Result, error) {
 	rows, err := s.db.SQL().Query(
-		resultColumns+" FROM results WHERE batch_id = ? ORDER BY version ASC", batchID)
+		resultColumns+" FROM results WHERE batch_id = ? ORDER BY version DESC", batchID)
 	if err != nil {
 		return nil, fmt.Errorf("list results: %w", err)
 	}
