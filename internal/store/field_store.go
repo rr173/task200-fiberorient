@@ -35,7 +35,7 @@ func (s *FieldStore) Get(id string) (*model.Field, error) {
 		 FROM fields WHERE id = ?`, id)
 	f, err := scanField(row)
 	if errors.Is(err, sql.ErrNoRows) {
-		return nil, nil
+		return nil, model.ErrNotFound
 	}
 	if err != nil {
 		return nil, err

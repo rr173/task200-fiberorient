@@ -94,7 +94,7 @@ func writeErr(w http.ResponseWriter, err error) {
 	var code int
 	switch {
 	case errors.Is(err, model.ErrNotFound):
-		code = http.StatusInternalServerError
+		code = http.StatusNotFound
 	case errors.Is(err, model.ErrConflict):
 		code = http.StatusConflict
 	case errors.Is(err, model.ErrInvalidState):
