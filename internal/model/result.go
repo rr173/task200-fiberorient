@@ -62,10 +62,10 @@ type Result struct {
 }
 
 // NewResult 创建计算中的结果版本。
+// id 允许为空：版本号在落库事务内原子分配时才能确定（见 store.AllocateAndInsert），
+// 此时 id 形如 "res-<batch>-v<version>"，也将在事务内回写；空 id 仅作为占位，
+// 必须由仓储在持久化前补齐，不得以空 id 落库。
 func NewResult(id, batchID string, version int, calibrationID, fieldSnapshot string, obsCount int) (*Result, error) {
-	if id == "" {
-		return nil, errors.New("result id required")
-	}
 	if batchID == "" {
 		return nil, errors.New("result batch id required")
 	}

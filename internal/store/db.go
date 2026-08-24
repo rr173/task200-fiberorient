@@ -17,7 +17,10 @@ import (
 // 支持 ":memory:" 用于测试与冒烟验证。
 func Open(path string) (*DB, error) {
 	if path == ":memory:" {
-		db, err := sql.Open("sqlite", "file::memory:?cache=shared")
+		// _txlock=immediate：写事务以 BEGIN IMMEDIATE 开启，写锁在读取前即获取，
+		// 保证结果版本号的“取 MAX(version)+1”与“插入”在同一写锁下串行执行，
+		// 消除并发重复版本与 UNIQUE(batch_id, version) 冲突。
+		db, err := sql.Open("sqlite", "file::memory:?cache=shared&_txlock=immediate")
 		if err != nil {
 			return nil, fmt.Errorf("open memory db: %w", err)
 		}
@@ -35,7 +38,9 @@ func Open(path string) (*DB, error) {
 			return nil, fmt.Errorf("mkdir db dir: %w", err)
 		}
 	}
-	db, err := sql.Open("sqlite", path)
+	// _txlock=immediate：同内存库，写事务以 BEGIN IMMEDIATE 开启，结果版本分配
+	// 的“取版本+插入”在同一写锁下串行，杜绝并发重复版本与唯一键冲突。
+	db, err := sql.Open("sqlite", path+"?_txlock=immediate")
 	if err != nil {
 		return nil, fmt.Errorf("open sqlite %s: %w", path, err)
 	}

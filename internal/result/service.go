@@ -5,7 +5,6 @@ package result
 import (
 	"errors"
 	"fmt"
-	"runtime"
 
 	"task200-fiberorient/internal/model"
 	"task200-fiberorient/internal/statistics"
@@ -91,14 +90,13 @@ func (s *Service) Compute(opts ComputeOptions) (*model.Result, error) {
 		angles = append(angles, statistics.CorrectForSlice(o.AngleDeg, sliceDeg[o.FieldID], cal.BiasDeg))
 	}
 
-	version, err := s.results.NextVersion(opts.BatchID)
-	if err != nil {
-		return nil, err
-	}
-	runtime.Gosched()
-	id := fmt.Sprintf("res-%s-v%d", opts.BatchID, version)
+	// 版本号由 AllocateAndInsert 在 BEGIN IMMEDIATE 事务内原子分配：取
+	// MAX(version)+1 与插入同一写锁下串行完成，杜绝并发重复版本与
+	// UNIQUE(batch_id, version) 冲突。结果 ID（res-<batch>-v<version>）依赖版本号，
+	// 亦在事务内确定版本后回写。此处先以占位版本 1 构造记录，真实版本号与 ID
+	// 均由 AllocateAndInsert 在落库时写入。
 	snapshot := joinIDs(opts.FieldIDs)
-	res, err := model.NewResult(id, opts.BatchID, version, opts.CalibrationID, snapshot, len(obs))
+	res, err := model.NewResult("", opts.BatchID, 1, opts.CalibrationID, snapshot, len(obs))
 	if err != nil {
 		return nil, err
 	}
@@ -107,7 +105,7 @@ func (s *Service) Compute(opts ComputeOptions) (*model.Result, error) {
 	if err := res.Finalize(stats, bim, ci, MinConfWidth); err != nil {
 		return nil, err
 	}
-	if err := s.results.Insert(res); err != nil {
+	if err := s.results.AllocateAndInsert(res); err != nil {
 		return nil, err
 	}
 	return res, nil
