@@ -16,11 +16,9 @@ type ObservationStore struct{ db *DB }
 func NewObservationStore(db *DB) *ObservationStore { return &ObservationStore{db: db} }
 
 // Insert 插入观测；同指纹冲突时返回 (false, nil) 表示幂等跳过。
+// 指纹包含 fieldID（见 model.fingerprintOf），因此同一提交标识可分别导入
+// 同一批次的两个不同视野并各自保留；仅同一视野内同提交同序号重试才判为重复。
 func (s *ObservationStore) Insert(o *model.Observation) (bool, error) {
-	parts := strings.Split(o.Fingerprint, "|")
-	if len(parts) == 4 {
-		o.Fingerprint = strings.Join([]string{parts[0], parts[2], parts[3]}, "|")
-	}
 	_, err := s.db.SQL().Exec(
 		`INSERT INTO observations (id, batch_id, field_id, angle_deg, unit, fingerprint, created_at)
 		 VALUES (?, ?, ?, ?, ?, ?, ?)`,

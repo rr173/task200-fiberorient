@@ -60,7 +60,9 @@ func (s *Service) Import(batchID, fieldID string, unit model.AngleUnit, angles [
 
 	res := &ImportResult{FieldID: fieldID, Unit: string(unit)}
 	for i, a := range angles {
-		id := fmt.Sprintf("obs-%s-%d", submissionID, i)
+		// id 包含 fieldID：同一提交标识可分别导入同一批次的两个不同视野，
+		// 二者各自的观测 id 互不冲突（跨视野导入各自保留）。
+		id := fmt.Sprintf("obs-%s-%s-%d", fieldID, submissionID, i)
 		o, err := model.NewObservation(id, batchID, fieldID, a, unit, submissionID, i)
 		if err != nil {
 			res.Rejected++

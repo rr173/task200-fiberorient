@@ -84,8 +84,11 @@ func normalizeAngle(angle float64, unit AngleUnit) (float64, error) {
 
 // fingerprintOf 计算观测指纹：批次+视野+提交批次+序号（同一次提交重试幂等，
 // 同角度多条纤维不误判重复）。
+//
+// 指纹包含 fieldID：同一提交标识可分别导入同一批次的两个不同切片视野，
+// 二者属于不同视野而各自保留；仅当同一视野内同提交同序号重试时才判为重复。
 func fingerprintOf(batchID, fieldID, submissionID string, seq int) string {
-	return fmt.Sprintf("%s|%s|%d", batchID, submissionID, seq)
+	return fmt.Sprintf("%s|%s|%s|%d", batchID, fieldID, submissionID, seq)
 }
 
 // FingerprintValue 返回观测指纹。
